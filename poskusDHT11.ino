@@ -54,24 +54,7 @@ void setup(){
 
   sensor_t sensor;
   dht.temperature().getSensor(&sensor);
-  Serial.println(F("------------------------------------"));
-  Serial.println(F("Temperature Sensor"));
-  Serial.print  (F("Sensor Type: ")); Serial.println(sensor.name);
-  Serial.print  (F("Driver Ver:  ")); Serial.println(sensor.version);
-  Serial.print  (F("Unique ID:   ")); Serial.println(sensor.sensor_id);
-  Serial.print  (F("Max Value:   ")); Serial.print(sensor.max_value); Serial.println(F("°C"));
-  Serial.print  (F("Min Value:   ")); Serial.print(sensor.min_value); Serial.println(F("°C"));
-  Serial.print  (F("Resolution:  ")); Serial.print(sensor.resolution); Serial.println(F("°C"));
-  Serial.println(F("------------------------------------"));
-  // Print humidity sensor details.
-  dht.humidity().getSensor(&sensor);
-  Serial.println(F("Humidity Sensor"));
-  Serial.print  (F("Sensor Type: ")); Serial.println(sensor.name);
-  Serial.print  (F("Driver Ver:  ")); Serial.println(sensor.version);
-  Serial.print  (F("Unique ID:   ")); Serial.println(sensor.sensor_id);
-  Serial.print  (F("Max Value:   ")); Serial.print(sensor.max_value); Serial.println(F("%"));
-  Serial.print  (F("Min Value:   ")); Serial.print(sensor.min_value); Serial.println(F("%"));
-  Serial.print  (F("Resolution:  ")); Serial.print(sensor.resolution); Serial.println(F("%"));
+
   Serial.println(F("------------------------------------"));
   // Set delay between sensor readings based on sensor details.
   delayMS = sensor.min_delay / 1000;
@@ -92,7 +75,7 @@ void setup(){
     {
     delay(500);
     Serial.println("Could not connect searching for default...");
-    WiFi.begin(default_ssid, default_password);
+    //WiFi.begin(default_ssid, default_password);
     }
   }
  if(WiFi.status() == WL_CONNECTED)
@@ -169,44 +152,47 @@ void mqtt_callback(char* topic, byte *payload, unsigned int length) {
     }
       
 }
+unsigned long int timeSensor = millis();
+void readTemp()
+{
+  if (millis() - timeSensor > 1000)
+  {
+  // Get temperature event and print its value.
+  float temperature;
+  float humidity;
+  sensors_event_t event;
+  dht.temperature().getEvent(&event);
+  if (isnan(event.temperature)) 
+  {
+    Serial.println(F("Error reading temperature!"));
+  }
+  else
+  {
+     client.publish("Temperature", String(event.temperature).c_str());
+    dht.humidity().getEvent(&event);
+    if (isnan(event.relative_humidity)) 
+    {
+      Serial.println(F("Error reading humidity!"));
+    }
+    else 
+    {
+      client.publish("Humidity", String(event.relative_humidity).c_str());
+    }
+  }
+  timeSensor = millis();
+  }
+}
+
 
 
 void loop(){
 
-  
   if (!client.connected()) {  // reconnect
     mqttconnect();
   }
+  
+  readTemp();
 
-  float temperature;
-  float humidity;
-
- 
-  delay(delayMS);
-  // Get temperature event and print its value.
-  sensors_event_t event;
-  dht.temperature().getEvent(&event);
-  if (isnan(event.temperature)) {
-    Serial.println(F("Error reading temperature!"));
-  }
-  else {
-    //Serial.print(F("Temperature: "));
-    //Serial.print(event.temperature);
-    //Serial.println(F("°C"));
-    client.publish("Temperature", String(event.temperature).c_str());
-  // Get humidity event and print its value.
-  dht.humidity().getEvent(&event);
-  if (isnan(event.relative_humidity)) {
-    Serial.println(F("Error reading humidity!"));
-  }
-  else {
-    //Serial.print(F("Humidity: "));
-    //Serial.print(event.relative_humidity);
-    //Serial.println(F("%"));
-    client.publish("Humidity", String(event.relative_humidity).c_str());
-  }
-  }
   
   client.loop();
-  //delay(1);
 }
