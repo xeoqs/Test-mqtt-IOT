@@ -7,9 +7,12 @@
 #include <Adafruit_Sensor.h>
 #include <DHT.h>
 #include <DHT_U.h>
+#include <Preferences.h>
 
 #define DHTPIN 4
 #define DHTTYPE    DHT11
+
+Preferences preferences;
 
 
 DHT_Unified dht(DHTPIN, DHTTYPE);
@@ -17,8 +20,6 @@ DHT_Unified dht(DHTPIN, DHTTYPE);
 uint32_t delayMS;
 
 
-//DHT dht(DHT11_PIN, DHT11, 15)
-//#include <Preferences.h>
 
 #include <mqtt_client.h>
 
@@ -30,8 +31,8 @@ char password[32] =  "kodermancki";
 
 //Preferences preferences;
 
-const char* default_ssid = "K8";
-const char* default_password = "dogsminusone";
+char* default_ssid = "K8";
+char* default_password = "dogsminusone";
  
 WiFiClient ethClient;
  
@@ -51,6 +52,7 @@ void setup(){
   delay(200);
 
   dht.begin();
+  preferences.begin("iot", false); 
 
   sensor_t sensor;
   dht.temperature().getSensor(&sensor);
@@ -58,6 +60,12 @@ void setup(){
   Serial.println(F("------------------------------------"));
   // Set delay between sensor readings based on sensor details.
   delayMS = sensor.min_delay / 1000;
+
+  
+  String ssid_string = (preferences.getString("ssid", "Koderman"));
+  String password_string = (preferences.getString("password", "kodermancki"));
+  ssid = ssid_string.c_str();
+  password = password.c_str();
   
   client.setServer(mqtt_server, 1883);
   client.setCallback(mqtt_callback);
@@ -125,9 +133,6 @@ void mqtt_callback(char* topic, byte *payload, unsigned int length) {
     //Serial.print((char)payload[i]);
     messageTemp += ((char)payload[i]);
     }
-     //Serial.println();
-    //Serial.println(messageTemp);
-
 
     if(String(topic)=="LED")
     {//Serial.println("Topic: LED");
@@ -144,11 +149,18 @@ void mqtt_callback(char* topic, byte *payload, unsigned int length) {
 
     if(String(topic) =="SSID")
     {
-      
+      ssid = messageTemp.c_str;
+      preferences.putString("ssid", messageTemp);
+      Serial.print("Updated Wifi ssid: ");
+      Serial.println(ssid);
     }
     if(String(topic) =="PASS")
     {
-      
+      password = messageTemp.c_str;
+      preferences.putString("password", messageTemp);
+      Serial.print("Updated Wifi password");
+      Serial.println(password);
+      ESP.restart();
     }
       
 }
